@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>eCMR - Firma Digital Escutia</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --navy: #0d1b2e; --gold: #c9a94a; --bg: #f8fafc; --text: #1e293b; }
+        * { box-sizing: border-box; }
+        body { font-family: sans-serif; background: var(--bg); margin: 0; padding: 16px; color: var(--text); }
+        .card { background: white; border-radius: 12px; padding: 20px; border: 1px solid #e2e8f0; margin-bottom: 16px; }
+        .precio-valor { font-size: 1.2rem; font-weight: 800; color: #16a34a; }
+        canvas { width: 100%; height: 220px; border: 2px solid #e2e8f0; border-radius: 8px; touch-action: none; background: #fff; }
+        .btn { width: 100%; padding: 16px; border: none; border-radius: 8px; font-weight: 700; font-size: 1rem; cursor: pointer; margin-top: 10px; }
+        .btn-primary { background: var(--navy); color: white; }
+    </style>
+</head>
+<body>
+    <div id="main-ui">
+        <h2 style="text-align:center; color:var(--navy);">Orden de Carga Digital</h2>
+        <div class="card">
+            <p><strong>Ruta:</strong> <span id="ruta-id">...</span></p>
+            <p><strong>Origen:</strong> <span id="txt-origen">Cargando...</span></p>
+            <p><strong>Destino:</strong> <span id="txt-destino">Cargando...</span></p>
+            <p><strong>Precio:</strong> <span class="precio-valor" id="txt-precio">0.00 €</span></p>
+        </div>
+        <div class="card">
+            <p style="font-size:0.8rem; color:#64748b;">Firme aquí con el dedo:</p>
+            <canvas id="canvas"></canvas>
+            <button class="btn btn-primary" onclick="confirmar()">CONFIRMAR FIRMA</button>
+            <button style="background:none; color:#64748b; border:none; width:100%; margin-top:10px;" onclick="limpiar()">Borrar y repetir</button>
+        </div>
+    </div>
+    <div id="success" style="display:none; text-align:center; margin-top:50px;">
+        <h2 style="color:#16a34a;">✅ ¡Firma Registrada!</h2>
+        <p>Ya puede cerrar esta pantalla.</p>
+    </div>
+
+<script>
+    const SUPABASE_URL = 'https://fruqtlytirxareutqmml.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZydXF0bHl0aXJ4YXJldXRxbW1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1OTY5MDMsImV4cCI6MjA4OTE3MjkwM30.K64NdIb8-1aN-jJBl3KLCQn5pjdQ14F6zgJIhu_A_e4';
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const rutaId = new URLSearchParams(window.location.search).get('ruta');
+    let dibujando = false;
+
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+    ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.strokeStyle = '#0d1b2e';
+
+    async function init() {
+        if (!rutaId) return;
+        document.getElementById('ruta-id').textContent = rutaId;
+        const { data } = await _supabase.from('viajes').select('*').eq('numero_ruta', rutaId);
+        if (data && data[0]) {
+            const v = data[0];
+            document.getElementById('txt-origen').textContent = v.cargas[0]?.poblacion || '—';
+            document.getElementById('txt-destino').textContent = v.descargas[v.descargas.length-1]?.poblacion || '—';
+            document.getElementById('txt-precio').textContent = (v.precio_coste || 0).toFixed(2) + " €";
+        }
+    }
+
+    function pos(e) {
+        const r = canvas.getBoundingClientRect();
+        const t = e.touches ? e.touches[0] : e;
+        return { x: t.clientX - r.left, y: t.clientY - r.top };
+    }
+    canvas.addEventListener('touchstart', (e) => { e.preventDefault(); dibujando = true; ctx.beginPath(); const p = pos(e); ctx.moveTo(p.x, p.y); });
+    canvas.addEventListener('touchmove', (e) => { e.preventDefault(); if(!dibujando) return; const p = pos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); });
+    canvas.addEventListener('touchend', () => dibujando = false);
+
+    function limpiar() { ctx.clearRect(0, 0, canvas.width, canvas.height); }
+
+    async function confirmar() {
+        const firmaImg = canvas.toDataURL('image/png');
+        const ipRes = await fetch('https://api.ipify.org?format=json');
+        const ipData = await ipRes.json();
+        const { error } = await _supabase.from('viajes').update({
+            ecmr_data: { estado: 'Firmado', firma_chofer: firmaImg, fecha_firma: new Date().toISOString(), ip_firma: ipData.ip }
+        }).eq('numero_ruta', rutaId);
+        if (!error) { document.getElementById('main-ui').style.display='none'; document.getElementById('success').style.display='block'; }
+    }
+    init();
+</script>
+</body>
+</html>
