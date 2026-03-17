@@ -25,12 +25,15 @@
 
         .firma-box { border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 15px; background: #fafafa; }
         .firma-box h3 { margin: 0 0 10px 0; font-size: 0.8rem; color: var(--navy); text-align: center; text-transform: uppercase; }
+        
+        /* Cajas de estado de firma */
+        .firma-bloqueada { background: #f8fafc; border: 1px dashed #94a3b8; text-align: center; padding: 20px 10px; border-radius: 6px; color: #64748b; font-size: 0.85rem; font-weight: bold; }
         canvas { width: 100%; height: 140px; border: 1px dashed #94a3b8; border-radius: 6px; background: #fff; touch-action: none; cursor: crosshair; }
+        .firma-sellada { border: 1px solid #bbf7d0; background: #f0fdf4; text-align: center; padding: 10px; border-radius: 8px; }
         
         .btn-sellar { width: 100%; padding: 12px; background: var(--navy); color: white; border: none; border-radius: 6px; font-weight: bold; margin-top: 10px; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 5px; font-size: 0.85rem; }
         .btn-limpiar { width: 100%; padding: 10px; background: #fef2f2; color: var(--danger); border: 1px solid #fca5a5; border-radius: 6px; font-size: 0.8rem; font-weight: bold; margin-top: 8px; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 5px; }
         
-        .firma-sellada { border: 1px solid #bbf7d0; background: #f0fdf4; text-align: center; padding: 10px; border-radius: 8px; }
         .badge-verde { background: #dcfce7; color: var(--success); padding: 4px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; display: inline-block; margin-bottom: 8px; border: 1px solid #bbf7d0; }
         .img-firma { width: 100%; max-height: 100px; object-fit: contain; background: white; border: 1px solid #e2e8f0; border-radius: 4px; margin-bottom: 8px; }
         .meta-legal { font-size: 0.6rem; color: #475569; line-height: 1.4; }
@@ -39,6 +42,7 @@
         .estado-proceso { background: #fef9c3; color: #854d0e; border: 1px solid #fef08a; }
         .estado-completado { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
 
+        /* Modales */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(13, 27, 46, 0.85); z-index: 1000; justify-content: center; align-items: center; padding: 20px; backdrop-filter: blur(3px); }
         .modal-box { background: white; width: 100%; max-width: 350px; border-radius: 12px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); text-align: center; }
         .modal-icon { font-size: 2.5rem; margin-bottom: 10px; }
@@ -49,7 +53,7 @@
         .modal-btn-confirm { background: var(--success); color: white; padding: 12px; border: none; border-radius: 6px; font-weight: bold; font-size: 0.9rem; cursor: pointer; }
         .modal-btn-cancel { background: white; color: #64748b; padding: 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-weight: bold; font-size: 0.9rem; cursor: pointer; }
 
-        /* Estilos bloque GPS */
+        /* Bloque GPS */
         #gps-block { display: none; background: white; border-radius: 8px; padding: 20px; border: 1px solid var(--danger); box-shadow: 0 4px 15px rgba(220, 38, 38, 0.15); text-align: center; }
         .gps-icon { font-size: 3.5rem; margin-bottom: 10px; }
         .instrucciones-caja { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; text-align: left; margin: 15px 0; }
@@ -92,7 +96,7 @@
         </ul>
     </div>
 
-    <button class="btn-reintentar" onclick="verificarGPS()">🔄 Reintentar y dar permiso</button>
+    <button class="btn-reintentar" onclick="location.reload()">🔄 Reintentar y dar permiso</button>
 </div>
 
 <div id="main-content" style="display:none;">
@@ -145,7 +149,8 @@
         
         <div id="block-cargador" class="firma-box">
             <h3>Firma del Cargador / Remitente</h3>
-            <div id="ui-cargador-canvas">
+            <div id="ui-cargador-bloqueado" class="firma-bloqueada" style="display:none;"></div>
+            <div id="ui-cargador-canvas" style="display:none;">
                 <canvas id="canv-cargador"></canvas>
                 <button class="btn-limpiar" onclick="limpiarRol('cargador')">🗑️ Borrar y empezar de nuevo</button>
                 <button class="btn-sellar" onclick="abrirModalConfirmacion('cargador')">🔒 Confirmar y Sellar Cargador</button>
@@ -159,7 +164,10 @@
 
         <div id="block-transportista" class="firma-box">
             <h3>Firma del Transportista Efectivo</h3>
-            <div id="ui-transportista-canvas">
+            <div id="ui-transportista-bloqueado" class="firma-bloqueada" style="display:none;">
+                🔒 Esperando firma del Cargador
+            </div>
+            <div id="ui-transportista-canvas" style="display:none;">
                 <canvas id="canv-transportista"></canvas>
                 <button class="btn-limpiar" onclick="limpiarRol('transportista')">🗑️ Borrar y empezar de nuevo</button>
                 <button class="btn-sellar" onclick="abrirModalConfirmacion('transportista')">🔒 Confirmar y Sellar Transportista</button>
@@ -173,7 +181,10 @@
 
         <div id="block-destinatario" class="firma-box">
             <h3>Firma del Destinatario (Receptor)</h3>
-            <div id="ui-destinatario-canvas">
+            <div id="ui-destinatario-bloqueado" class="firma-bloqueada" style="display:none;">
+                🔒 Esperando firma del Transportista
+            </div>
+            <div id="ui-destinatario-canvas" style="display:none;">
                 <canvas id="canv-destinatario"></canvas>
                 <button class="btn-limpiar" onclick="limpiarRol('destinatario')">🗑️ Borrar y empezar de nuevo</button>
                 <button class="btn-sellar" onclick="abrirModalConfirmacion('destinatario')">🔒 Confirmar y Sellar Destinatario</button>
@@ -222,7 +233,6 @@
     };
 
     function verificarGPS() {
-        // Mostrar Loading, Ocultar resto
         document.getElementById('gps-block').style.display = 'none';
         document.getElementById('main-content').style.display = 'none';
         
@@ -315,25 +325,53 @@
         const roles = ['cargador', 'transportista', 'destinatario'];
         let firmasCompletadas = 0;
 
+        // LÓGICA DE ORDEN SECUENCIAL
+        const canSign = {
+            cargador: true,
+            transportista: !!ecmrJSON['cargador'],
+            destinatario: !!ecmrJSON['transportista']
+        };
+
         roles.forEach(rol => {
+            const uiCanvas = document.getElementById(`ui-${rol}-canvas`);
+            const uiSellado = document.getElementById(`ui-${rol}-sellado`);
+            const uiBloqueado = document.getElementById(`ui-${rol}-bloqueado`);
+
             if (ecmrJSON[rol]) { 
-                document.getElementById(`ui-${rol}-canvas`).style.display = 'none';
-                document.getElementById(`ui-${rol}-sellado`).style.display = 'block';
-                document.getElementById(`img-${rol}`).src = ecmrJSON[rol].firma_img;
+                // 1. YA FIRMADO: Mostrar sello, ocultar lo demás
+                if(uiCanvas) uiCanvas.style.display = 'none';
+                if(uiBloqueado) uiBloqueado.style.display = 'none';
+                if(uiSellado) uiSellado.style.display = 'block';
                 
+                document.getElementById(`img-${rol}`).src = ecmrJSON[rol].firma_img;
                 document.getElementById(`meta-${rol}`).innerHTML = `
                     <strong>Fecha:</strong> ${new Date(ecmrJSON[rol].fecha).toLocaleString('es-ES')}<br>
                     <strong>IP:</strong> ${ecmrJSON[rol].ip} | <strong>GPS:</strong> ${ecmrJSON[rol].lat}, ${ecmrJSON[rol].lon}
                 `;
-                
                 firmasCompletadas++;
-            } else { 
-                document.getElementById(`ui-${rol}-canvas`).style.display = 'block';
-                document.getElementById(`ui-${rol}-sellado`).style.display = 'none';
-                initCanvas(rol);
+
+            } else if (canSign[rol]) {
+                // 2. TOCA FIRMAR: Mostrar canvas (y crearlo si no existe)
+                if(uiBloqueado) uiBloqueado.style.display = 'none';
+                if(uiSellado) uiSellado.style.display = 'none';
+                if(uiCanvas) {
+                    uiCanvas.style.display = 'block';
+                    if (!canvases[rol]) initCanvas(rol);
+                }
+
+            } else {
+                // 3. BLOQUEADO: Esperando a que el rol anterior firme
+                if(uiCanvas) uiCanvas.style.display = 'none';
+                if(uiSellado) uiSellado.style.display = 'none';
+                if(uiBloqueado) {
+                    uiBloqueado.style.display = 'block';
+                    const previo = rol === 'transportista' ? 'Cargador' : 'Transportista';
+                    uiBloqueado.innerHTML = `🔒 Esperando firma del ${previo}`;
+                }
             }
         });
 
+        // Actualizar el "semáforo" global de estado
         const badge = document.getElementById('badge-estado');
         if (firmasCompletadas === 3) {
             badge.className = 'estado-global estado-completado';
@@ -353,6 +391,7 @@
     function initCanvas(rol) {
         const el = document.getElementById(`canv-${rol}`);
         if(!el) return;
+        // Ajustamos el tamaño real del canvas al tamaño del contenedor
         el.width = el.offsetWidth; el.height = 140; 
         const ctx = el.getContext('2d');
         ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.strokeStyle = '#0d1b2e';
