@@ -48,6 +48,15 @@
         .modal-btn-group { display: flex; flex-direction: column; gap: 10px; }
         .modal-btn-confirm { background: var(--success); color: white; padding: 12px; border: none; border-radius: 6px; font-weight: bold; font-size: 0.9rem; cursor: pointer; }
         .modal-btn-cancel { background: white; color: #64748b; padding: 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-weight: bold; font-size: 0.9rem; cursor: pointer; }
+
+        /* Estilos bloque GPS */
+        #gps-block { display: none; background: white; border-radius: 8px; padding: 20px; border: 1px solid var(--danger); box-shadow: 0 4px 15px rgba(220, 38, 38, 0.15); text-align: center; }
+        .gps-icon { font-size: 3.5rem; margin-bottom: 10px; }
+        .instrucciones-caja { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; text-align: left; margin: 15px 0; }
+        .instrucciones-caja h4 { margin: 0 0 10px 0; color: var(--navy); font-size: 0.9rem; }
+        .instrucciones-caja ul { padding-left: 20px; font-size: 0.8rem; color: #475569; margin-bottom: 15px; }
+        .instrucciones-caja ul li { margin-bottom: 6px; }
+        .btn-reintentar { background: var(--navy); color: white; border: none; padding: 14px; border-radius: 8px; font-weight: bold; font-size: 1rem; width: 100%; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
     </style>
 </head>
 <body>
@@ -57,7 +66,34 @@
     <p>CARTA DE PORTE ELECTRÓNICA (eCMR)</p>
 </div>
 
-<div id="loading" style="text-align:center; padding: 50px; font-weight: bold; color: var(--navy);">Cargando documento...</div>
+<div id="loading" style="text-align:center; padding: 40px 20px; font-weight: bold; color: var(--navy);">
+    📍 Solicitando acceso a la ubicación...
+    <div style="font-size:0.8rem; color:#64748b; font-weight:normal; margin-top:10px;">Acepta el permiso en tu navegador para continuar.</div>
+</div>
+
+<div id="gps-block">
+    <div class="gps-icon">📍</div>
+    <h2 style="color: var(--danger); margin: 0 0 10px 0; font-size:1.3rem;">Ubicación Obligatoria</h2>
+    <p style="font-size: 0.85rem; color: #475569; margin-top:0;">La ley exige registrar la ubicación GPS exacta en el momento de la firma para dar validez legal al eCMR.</p>
+    
+    <div class="instrucciones-caja">
+        <h4>¿Por qué no te deja acceder?</h4>
+        
+        <p style="margin: 0 0 5px 0; font-weight:bold; font-size:0.85rem;">🍏 En iPhone / iOS:</p>
+        <ul style="margin-bottom: 10px;">
+            <li><strong>Si abriste el enlace desde WhatsApp:</strong> Toca el icono de Safari (la brújula abajo a la derecha) o los 3 puntos y selecciona "Abrir en Safari".</li>
+            <li><strong>Si ya estás en Safari:</strong> Ve a los <em>Ajustes</em> de tu iPhone > <em>Safari</em> > <em>Ubicación</em> y selecciona "Preguntar" o "Permitir".</li>
+        </ul>
+
+        <p style="margin: 0 0 5px 0; font-weight:bold; font-size:0.85rem;">🤖 En Android:</p>
+        <ul style="margin-bottom: 0;">
+            <li><strong>Desde WhatsApp:</strong> Toca los 3 puntos arriba a la derecha y selecciona "Abrir en Chrome".</li>
+            <li>Asegúrate de tener la ubicación (GPS) activada en tu teléfono.</li>
+        </ul>
+    </div>
+
+    <button class="btn-reintentar" onclick="verificarGPS()">🔄 Reintentar y dar permiso</button>
+</div>
 
 <div id="main-content" style="display:none;">
     
@@ -69,7 +105,7 @@
             <div class="grid-full">
                 <div class="label">Operador de Transporte / Agencia</div>
                 <div class="val">GRUPO ESCUTIA SL</div>
-                <div class="sub-val">NIF: ESCRIBE_TU_NIF_AQUI | Dir: ESCRIBE_TU_DIRECCIÓN_COMPLETA_AQUI</div>
+                <div class="sub-val">NIF: B00000000 | Dir: C/ Ejemplo 1, Valencia</div>
             </div>
             <div style="border-top: 1px solid #eee; padding-top: 8px;">
                 <div class="label">Cargador / Remitente (Lugar de Carga)</div>
@@ -156,8 +192,8 @@
         <div class="modal-icon">⚠️</div>
         <div class="modal-title">¿Sellar esta firma?</div>
         <div class="modal-text">
-            Al confirmar, se registrará tu ubicación GPS, la fecha y la dirección IP.<br><br>
-            <strong>Esta acción es irreversible y la firma quedará bloqueada en el documento oficial.</strong>
+            Al confirmar, la firma quedará bloqueada en el documento oficial junto a tu IP y coordenadas actuales.<br><br>
+            <strong>Esta acción es irreversible.</strong>
         </div>
         <div class="modal-btn-group">
             <button class="modal-btn-confirm" onclick="ejecutarSello()">✅ Sí, estoy de acuerdo y firmo</button>
@@ -176,14 +212,62 @@
     let viajeDataDB = null;
     let ecmrJSON = {}; 
     let rolPendienteSello = null;
+    
+    // Variables globales para guardar la ubicación inicial
+    let latGlobal = "No disp.";
+    let lonGlobal = "No disp.";
 
-    window.onload = async () => {
+    window.onload = () => {
+        verificarGPS();
+    };
+
+    function verificarGPS() {
+        // Mostrar Loading, Ocultar resto
+        document.getElementById('gps-block').style.display = 'none';
+        document.getElementById('main-content').style.display = 'none';
+        
+        const loadingEl = document.getElementById('loading');
+        loadingEl.style.display = 'block';
+        loadingEl.innerHTML = `
+            📍 Solicitando acceso a la ubicación...
+            <div style="font-size:0.8rem; color:#64748b; font-weight:normal; margin-top:10px;">Acepta el permiso en tu navegador para continuar.</div>
+        `;
+
+        if (!navigator.geolocation) {
+            mostrarErrorGPS();
+            return;
+        }
+
+        // Solicitar GPS nada más entrar
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                // Permiso concedido
+                latGlobal = pos.coords.latitude;
+                lonGlobal = pos.coords.longitude;
+                cargarDatosSupabase();
+            },
+            (err) => {
+                // Permiso denegado o error (timeout)
+                mostrarErrorGPS();
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+    }
+
+    function mostrarErrorGPS() {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('gps-block').style.display = 'block';
+    }
+
+    async function cargarDatosSupabase() {
         try {
             const loadingEl = document.getElementById('loading');
-            if(!rutaId) { loadingEl.textContent = "Error: Falta el número de ruta."; return; }
+            if(!rutaId) { loadingEl.textContent = "Error: Falta el número de ruta en la URL."; return; }
+
+            loadingEl.textContent = "⏳ Descargando datos del eCMR...";
 
             const { data: v, error } = await _supabase.from('viajes').select('*').eq('numero_ruta', rutaId).single();
-            if (error || !v) { loadingEl.textContent = "Viaje no encontrado."; return; }
+            if (error || !v) { loadingEl.textContent = "Viaje no encontrado o borrado."; return; }
 
             viajeDataDB = v;
             
@@ -202,7 +286,7 @@
         } catch(err) {
             document.getElementById('loading').textContent = "⚠️ Error: " + err.message;
         }
-    };
+    }
 
     function inyectarDatosViaje(v) {
         const c0 = (v.cargas && v.cargas[0]) ? v.cargas[0] : {};
@@ -237,7 +321,6 @@
                 document.getElementById(`ui-${rol}-sellado`).style.display = 'block';
                 document.getElementById(`img-${rol}`).src = ecmrJSON[rol].firma_img;
                 
-                // AQUÍ ES DONDE SE CORTÓ ANTES. AHORA ESTÁ COMPLETO:
                 document.getElementById(`meta-${rol}`).innerHTML = `
                     <strong>Fecha:</strong> ${new Date(ecmrJSON[rol].fecha).toLocaleString('es-ES')}<br>
                     <strong>IP:</strong> ${ecmrJSON[rol].ip} | <strong>GPS:</strong> ${ecmrJSON[rol].lat}, ${ecmrJSON[rol].lon}
@@ -313,12 +396,21 @@
 
         const btnConfirm = document.querySelector('.modal-btn-confirm');
         const textoOriginal = btnConfirm.innerHTML;
-        btnConfirm.innerHTML = "⏳ Obteniendo GPS e IP...";
+        btnConfirm.innerHTML = "⏳ Sellando firma y ubicación...";
         btnConfirm.disabled = true;
 
-        let lat = "No disp.", lon = "No disp.", ip = "0.0.0.0";
-        try { const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, {timeout: 5000})); lat = pos.coords.latitude; lon = pos.coords.longitude; } catch(e) {}
+        let ip = "0.0.0.0";
         try { const ipRes = await fetch('https://api.ipify.org?format=json'); const ipData = await ipRes.json(); ip = ipData.ip; } catch(e) {}
+
+        // Intentamos coger una ubicación más fresca (timeout corto). 
+        // Si falla (porque está dentro de nave sin señal), usamos la que cogimos al abrir la web (latGlobal)
+        let lat = latGlobal;
+        let lon = lonGlobal;
+        try { 
+            const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, {timeout: 3000, maximumAge: 60000})); 
+            lat = pos.coords.latitude; 
+            lon = pos.coords.longitude; 
+        } catch(e) {}
 
         ecmrJSON[rol] = {
             firma_img: canvases[rol].el.toDataURL(),
